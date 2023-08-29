@@ -5,6 +5,8 @@ import matplotlib.pylab as plt
 from scipy.optimize import minimize
 from scipy.linalg import block_diag
 from sklearn.covariance import LedoitWolf
+import scipy.optimize as opt
+from tqdm.notebook import tqdm
 
 
 # snippet 2.1
@@ -271,3 +273,178 @@ def optPortLongOnly(cov, mu=None):
     wpluss = wpluss / np.sum(wpluss)
 
     return wpluss
+
+def portfolio_annualised_performance(weights, day_returns, cov_matrix):
+    returns = np.sum(day_returns.T.dot(weights)) *252
+    std = np.sqrt(np.dot(weights, weights.dot(cov_matrix))) * np.sqrt(252)
+    return std, returns
+
+def random_portfolios(num_portfolios, day_returns, cov_matrix):
+    '''
+    Return performance of required number of random portfolios
+    '''
+    results = np.zeros((2,num_portfolios))
+    weights_record = []
+    for i in range(num_portfolios):
+        mu, sigma = 0.1, 0.1 # mean and standard deviation of the alternative vectors of expected returns
+        weights = np.random.normal(mu, sigma, len(day_returns))
+        weights /= np.sum(weights)
+        weights_record.append(weights)
+        portfolio_std_dev, portfolio_return = portfolio_annualised_performance(weights, day_returns, cov_matrix)
+        results[0,i] = portfolio_std_dev
+        results[1,i] = portfolio_return
+    return results, weights_record
+
+def portfolio_volatility(weights, returns, cov_matrix):
+    portfolio_returns = np.dot(returns.T, weights)
+    portfolio_volatility = np.sqrt(np.dot(weights, np.dot(cov_matrix, weights)))
+    return portfolio_volatility
+
+def efficient_return(day_returns, cov_matrix, target): # target is the target value for returning the efficient frontier axis (similiar to a y-axis value )
+    num_assets = len(day_returns)
+    args = (day_returns, cov_matrix)
+
+    def portfolio_return(weights):
+        return portfolio_annualised_performance(weights, day_returns, cov_matrix)[1]
+
+    constraints = ({'type': 'eq', 'fun': lambda x: portfolio_return(x) - target},
+                   {'type': 'eq', 'fun': lambda x: np.sum(x) - 1})
+    bounds = tuple((0,1) for asset in range(num_assets))
+    result = opt.minimize(portfolio_volatility, num_assets*[1./num_assets,],
+                          args = args, method = 'SLSQP', bounds = bounds, constraints=constraints)
+    return result
+
+def efficient_frontier(day_returns, cov_matrix, returns_range): # return efficient frontier
+    efficients = []
+    for ret in tqdm(returns_range, desc = 'calculating efficient frontier using optimization method:'):
+        efficients.append(efficient_return(day_returns, cov_matrix, ret))
+    return efficients
+
+def ef_with_random_portfolio_opt(day_returns,cov_matrix,num_portfolios,ax = None,return_plot = True):
+    cov_matrix = day_returns.T.cov()
+    results, weights = random_portfolios(num_portfolios,day_returns, cov_matrix)
+
+    target = np.linspace(max(np.min(results[1]),0), np.quantile(results[1],0.7), 30)
+    efficient_portfolios = efficient_frontier(day_returns, cov_matrix, target)
+    frontier = [p['fun'] for p in efficient_portfolios]
+
+    if return_plot:
+        if not ax:
+            fig = plt.figure(figsize=(10, 7))
+            ax = fig.add_subplot(111)
+
+            #ax.legend(labelspacing=0.8)
+        #ax.plot(frontier, target, color = 'black', linewidth = 2, label = 'efficient frontier')
+
+        ax.scatter(results[0,:],results[1,:], marker='o', s=10, alpha=0.3)
+        ax.set_title('Calculated Portfolio Optimization based on Efficient Frontier')
+        ax.set_xlabel('annualised volatility')
+        ax.set_ylabel('annualised returns')
+        #ax.legend()
+
+    return ax,[frontier,target]
+
+def efficient_return_simu(results, target):
+
+    # return efficient frontier
+    # use +-5% area of the target, return the nearest min
+    results = pd.DataFrame(results.T).sort_values(by = 1)
+    closiest_idx = np.argmin(np.abs(results[1]-target))
+    data_target = results[1][closiest_idx]
+    target_range_min = min(data_target*0.95, data_target*1.05)
+    target_range_max = max(data_target*0.95, data_target*1.05)
+    sub_results = results.loc[(results[1] <= target_range_max) & (results[1] >= target_range_min),0:2]
+
+    return min(sub_results[0])
+
+def efficient_frontier_emp(day_returns, cov_matrix, num_portfolios,  returns_range, random_seed=0):
+    efficients = []
+    np.random.seed(random_seed)
+    results, weights = random_portfolios(
+        num_portfolios, day_returns, cov_matrix)
+    for ret in returns_range:
+        efficients.append(efficient_return_simu(results, ret))
+    return efficients
+
+def ef_with_random_portfolio_simu(day_returns, cov_matrix, num_portfolios, ax=None, return_plot=True, random_seed=0,mean_frontier = None):
+    results, weights = random_portfolios(
+        num_portfolios, day_returns, cov_matrix)
+
+    #target_start = max(results[1][results[0]==np.min(results[0])][0],0)
+    target_start = 0
+    if True: #not return_plot:
+        target_end = 400
+    else:
+        target_end = results[1][results[0]==np.max(results[0])][0]
+
+    target = np.linspace(target_start, target_end, 30)
+    efficient_portfolios = None
+    efficient_portfolios = efficient_frontier_emp(day_returns, cov_matrix, num_portfolios, target, random_seed=random_seed)
+
+    if return_plot:
+        if not ax:
+            fig = plt.figure(figsize=(10, 7))
+            ax = fig.add_subplot(111)
+
+            # ax.legend(labelspacing=0.8)
+        #if mean_frontier:
+            #ax.plot(mean_frontier[0], mean_frontier[1], color='black',linewidth=2, label='mean efficient frontier')
+        #else:
+            #ax.plot(efficient_portfolios, target, color='black',linewidth=2, label='efficient frontier')
+
+        ax.scatter(results[0, :], results[1, :], marker='o', s=10, alpha=0.3)
+        ax.set_title(
+            'Calculated Portfolio Optimization based on Efficient Frontier')
+        ax.set_xlabel('annualised volatility')
+        ax.set_ylabel('annualised returns')
+        #ax.legend()
+    else:
+        ax = None
+
+    return ax, [efficient_portfolios, target]
+
+def MC_ef_frontier(day_returns, cov_matrix, itertimes = 100, random_seed = 42):
+    np.random.seed(random_seed)
+    target_ret = pd.DataFrame(day_returns.T)
+    target_cov = cov_matrix
+    frontier = []
+    for i in tqdm(range(itertimes)):
+        ax,frontier_ret = ef_with_random_portfolio_simu(target_ret,target_cov,1000,return_plot = False,random_seed = i)
+        frontier.append(frontier_ret[0])
+    mean_frontier_vol = np.mean(frontier, axis = 0)
+    mean_frontier_ret = frontier_ret[1]
+    fig = plt.figure(figsize=(10, 7))
+    ax = fig.add_subplot(111)
+    ax,_ = ef_with_random_portfolio_simu(target_ret, target_cov, 1000, ax=ax,
+                                         return_plot=True, random_seed = 42,
+                                         mean_frontier = [mean_frontier_vol, frontier_ret[1]])
+    return frontier
+
+def error_mean_ef_frontier(frontiers, mean_frontier):
+    err = []
+    for frontier in frontiers:
+        err.append(np.std(frontier-mean_frontier))
+    return np.var(err)
+
+def errPDFs(var, eVal, q, bWidth, pts = 1000):
+    # Fit error
+    var = var[0]
+    pdf0 = mpPDF(var, q, pts) # theoretical pdf
+    pdf1 = fitKDE(eVal, bWidth, x = pdf0.index.values) # empirical pdf
+    #import pdb; pdb.set_trace()
+    sse=np.sum((pdf1-pdf0)**2)
+    return sse
+
+def random_eigenvalues(matrix):
+    """
+    Calculate the eigenvalues of the covariance matrix of the given matrix
+
+    Parameters:
+        - matrix: Input matrix
+
+    Returns:
+        - eigenvalues: Eigenvalues of the covariance matrix
+    """
+    covariance_matrix = np.cov(matrix.T)  # Calculate the covariance matrix
+    eigenvalues = np.linalg.eigvals(covariance_matrix)  # Calculate the eigenvalues
+    return eigenvalues
