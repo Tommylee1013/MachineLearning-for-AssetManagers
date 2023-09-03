@@ -14,6 +14,13 @@ def denoisedCorr(eVal, eVec, nFacts):
     corr1 = np.dot(eVec, eVal_).dot(eVec.T)  # Eigendecomposition of a symmetric matrix: S = QΛQT
     corr1 = cov2corr(corr1)  # Rescaling the correlation matrix to have 1s on the main diagonal
     return corr1
+def denoisedCorr2(eVal, eVec, nFacts, alpha = 0):
+    eValL, eVecL = eVal[:nFacts, :nFacts], eVec[:, :nFacts]
+    eValR, eVecR = eVal[nFacts:, nFacts:], eVec[:, nFacts:]
+    corr0 = np.dot(eVecL, eValL).dot(eVecL.T)
+    corr1 = np.dot(eVecR, eValR).dot(eVecR.T)
+    corr2 = corr0 + alpha*corr1 + (1 - alpha) * np.diag(np.diag(corr1))
+    return corr2
 
 def main() :
     cov = np.cov(np.random.normal(size = (nCols * q, nCols)), rowvar = 0)
