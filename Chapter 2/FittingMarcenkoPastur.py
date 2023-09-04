@@ -16,7 +16,7 @@ def errPDFs(var, eVal, q, bWidth, pts=1000):
 
 def findMaxEval(eVal, q, bWidth):
     out = minimize(lambda *x: errPDFs(*x), x0=np.array(0.5), args=(eVal, q, bWidth), bounds=((1E-5, 1 - 1E-5),))
-    print("found errPDFs" + str(out['x'][0]))
+    # print("found errPDFs" + str(out['x'][0]))
     if out['success']:
         var = out['x'][0]
     else:
