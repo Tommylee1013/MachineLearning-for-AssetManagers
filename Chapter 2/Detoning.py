@@ -35,6 +35,7 @@ def main() :
     detoned_eigenvalue = np.diag(eVal2)
 
     plt.figure(figsize = (6,4))
+    plt.grid(False)
     plt.plot(eigenvalue_prior, label = 'Original eigen-function')
     plt.plot(denoised_eigenvalue, label = 'Denoised eigen-function', ls = '--')
     plt.plot(detoned_eigenvalue, label = 'Detoned-Denoised eigen-function', ls = ':')

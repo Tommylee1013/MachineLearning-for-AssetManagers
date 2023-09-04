@@ -29,6 +29,7 @@ def main() :
     pdf1 = fitKDE(np.diag(eVal0), bWidth = 0.01)
 
     plt.figure(figsize = (6,4))
+    plt.grid(False)
     plt.plot(pdf0, label='Marcenko-Pastur Distribution', color = 'r', alpha = 0.6)
     plt.hist(np.diag(eVal0), density = True, bins = 500, label = "Empirical Distribution", color = 'orange')
     plt.xlabel(r'$\lambda$', fontfamily='Serif')

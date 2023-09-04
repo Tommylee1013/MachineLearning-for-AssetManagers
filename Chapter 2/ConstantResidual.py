@@ -37,6 +37,7 @@ def main() :
     eigenvalue_prior = np.diag(eVal0)
 
     plt.figure(figsize = (6,4))
+    plt.grid(False)
     plt.plot(eigenvalue_prior, label = 'Original eigen-function')
     plt.plot(denoised_eigenvalue, label = 'Denoised eigen-function', ls = '--')
     plt.yscale('log')
