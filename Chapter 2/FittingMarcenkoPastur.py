@@ -39,7 +39,7 @@ def main() :
     plt.figure(figsize = (6,4))
     plt.grid(False)
     plt.plot(pdf0, label='Marcenko-Pastur Distribution', color = 'r', alpha = 0.6)
-    plt.hist(np.diag(eVal0), density = True, bins = 500, label = "Empirical Distribution", color = 'orange')
+    plt.hist(np.diag(eVal0), density = True, bins = 500, label = "Empirical Distribution", color = 'orange', edgecolor = 'orange')
     plt.xlabel(r'$\lambda$', fontfamily='Serif')
     plt.ylabel(r'prob($\lambda$)', fontfamily='Serif')
     plt.legend(loc='upper right', fontsize=9)
