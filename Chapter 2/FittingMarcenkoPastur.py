@@ -11,7 +11,7 @@ def errPDFs(var, eVal, q, bWidth, pts=1000):
     pdf0 = mpPDF(var, q, pts)  # theoretical pdf
     pdf1 = fitKDE(eVal, bWidth, x=pdf0.index.values)  # empirical pdf
     sse = np.sum((pdf1 - pdf0) ** 2)
-    print("sse:" + str(sse))
+    #print("sse:" + str(sse))
     return sse
 
 def findMaxEval(eVal, q, bWidth):
